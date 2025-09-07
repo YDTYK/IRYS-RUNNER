@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    <title>Forward Runner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Faster+One&display=swap');
+
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #40e0d0, #ffffff);
+            font-family: 'Press Start 2P', monospace;
+            color: #fff;
+            position: relative;
+            touch-action: manipulation;
+        }
+        #game-container {
+            position: relative;
+            width: 70%;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #ui-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .ui-box {
+            padding: 2rem 4rem;
+            background: linear-gradient(to bottom, #007c80, #40e0d0);
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            border: 2px solid #6b7280;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #e5e7eb;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-family: 'Faster One', cursive;
+        }
+        p {
+            font-size: 0.6rem;
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+        .input-field {
+            font-family: 'Press Start 2P', monospace;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background: #4a5568;
+            color: #e5e7eb;
+            border: 2px solid #6b7280;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .input-field::placeholder {
+            color: #a0aec0;
+        }
+        .btn {
+            font-family: 'Press Start 2P', monospace;
+            padding: 1rem 2rem;
+            font-size: 1.25rem;
+            background: #4a5568;
+            color: #e5e7eb;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-transform: uppercase;
+        }
+        .btn:hover {
+            background: #2d3748;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+        #score-display {
+            position: absolute;
+            top: 10px;
+            left: -70px;
+            font-size: 1.2rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            z-index: 10;
+        }
+        #logo-container {
+            position: absolute;
+            top: -10px;
+            right: -100px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .logo-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .logo-block img {
+            width: 50px;
+            height: 50px;
+            border-radius: 20%;
+            transition: transform 0.3s ease;
+        }
+        .logo-block img:hover {
+            transform: scale(1.1);
+        }
+        .logo-text {
+            font-size: 0.5rem;
+            color: #e5e7eb;
+            text-align: center;
+            margin-top: 5px;
+        }
+        #left-touch-area, #right-touch-area {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+        #left-touch-area {
+            left: 0;
+        }
+        #right-touch-area {
+            right: 0;
+        }
+        #left-touch-area::before {
+            content: '← LEFT';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+        #right-touch-area::before {
+            content: 'RIGHT →';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+        #left-touch-area:active, #right-touch-area:active {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            body {
+                background: linear-gradient(to bottom, #40e0d0, #ffffff);
+                width: 100vw;
+                height: 100vh;
+                position: fixed;
+            }
+            #game-container {
+                width: 100%;
+                height: 100vh;
+                max-height: 100vh;
+            }
+            .ui-box {
+                padding: 1.5rem 2rem;
+                width: 85%;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            p {
+                font-size: 0.45rem;
+                line-height: 1.3;
+            }
+            .btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+            #score-display {
+                top: 15px;
+                left: 15px;
+                font-size: 0.9rem;
+                padding: 0.4rem 0.6rem;
+            }
+            #logo-container {
+                top: 15px;
+                right: 15px;
+                flex-direction: row;
+                gap: 8px;
+            }
+            .logo-block img {
+                width: 30px;
+                height: 30px;
+            }
+            .logo-text {
+                display: none;
+            }
+            #left-touch-area, #right-touch-area {
+                display: block;
+            }
+            #left-touch-area::before, #right-touch-area::before {
+                font-size: 0.6rem;
+            }
+            .input-field {
+                font-size: 0.8rem;
+                padding: 0.7rem 1rem;
+            }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 480px) {
+            .ui-box {
+                padding: 1rem 1.5rem;
+                width: 90%;
+            }
+            h1 {
+                font-size: 1.1rem;
+                margin-bottom: 0.8rem;
+            }
+            p {
+                font-size: 0.4rem;
+                margin-bottom: 0.8rem;
+            }
+            .btn {
+                font-size: 0.8rem;
+                padding: 0.7rem 1.2rem;
+            }
+            #score-display {
+                font-size: 0.8rem;
+                padding: 0.3rem 0.5rem;
+            }
+            .logo-block img {
+                width: 25px;
+                height: 25px;
+            }
+            .input-field {
+                font-size: 0.7rem;
+                padding: 0.6rem 0.8rem;
+            }
+        }
+
+        /* Landscape orientation on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #game-container {
+                height: 100vh;
+            }
+            .ui-box {
+                padding: 1rem 2rem;
+                max-width: 500px;
+            }
+            h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+            }
+            p {
+                font-size: 0.4rem;
+                margin-bottom: 0.5rem;
+            }
+            .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score-display">Score: 0</div>
+        <div id="logo-container">
+            <div class="logo-block">
+                <a href="https://x.com/irys_xyz" target="_blank">
+                    <img src="https://pbs.twimg.com/profile_images/1879776802563891200/cdpcRzVY_400x400.jpg" alt="IRYS Logo">
+                </a>
+                <p class="logo-text">IRYS</p>
+            </div>
+            <div class="logo-block">
+                <a href="https://x.com/josh_benaron" target="_blank">
+                    <img src="https://pbs.twimg.com/profile_images/1879920376299573248/v0aSYmWE_400x400.jpg" alt="Josh Benaron">
+                </a>
+                <p class="logo-text">@josh_benaron founder</p>
+            </div>
+            <div class="logo-block">
+                <a href="https://x.com/Mko18002" target="_blank">
+                    <img src="https://pbs.twimg.com/profile_images/1959011661672579073/wykANLF5_400x400.jpg" alt="Malik">
+                </a>
+                <p class="logo-text">MALIK</p>
+            </div>
+        </div>
+        <div id="left-touch-area"></div>
+        <div id="right-touch-area"></div>
+        <div id="ui-overlay">
+            <div class="ui-box" id="start-screen">
+                <h1>IRYS RUNNER</h1>
+                <p>Enter your name:</p>
+                <input type="text" id="player-name-input" placeholder="Your Name" class="input-field">
+                <p>Use LEFT and RIGHT arrow keys or touch the screen sides to avoid obstacles.</p>
+                <p>Collect the objects for points!</p>
+                <button class="btn" id="start-btn">Start Game</button>
+            </div>
+            <div class="ui-box" id="game-over-screen" style="display:none;">
+                <h1>Game Over</h1>
+                <p>Final Score: <span id="final-score">0</span></p>
+                <p id="player-name-display"></p>
+                <button class="btn" id="restart-btn">Restart</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game variables
+        let scene, camera, renderer;
+        let player;
+        let obstacles = [];
+        let roadSegments = [];
+        let dashedLines = [];
+        let statues = [];
+        let score = 0;
+        let speed = 0.5;
+        const maxSpeed = 2.0;
+        const speedIncrement = 0.0001;
+        let gameRunning = false;
+        let keys = {};
+        let playerName = '';
+        
+        // UI elements
+        const uiOverlay = document.getElementById('ui-overlay');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const scoreDisplay = document.getElementById('score-display');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const playerNameInput = document.getElementById('player-name-input');
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const leftTouchArea = document.getElementById('left-touch-area');
+        const rightTouchArea = document.getElementById('right-touch-area');
+
+        // URL for the collectable image
+        const collectableImageUrl = 'https://pbs.twimg.com/media/Gz8Ja9NXkAIi9Y9?format=jpg&name=medium';
+        let collectableTexture;
+
+        // Sound Effects using Tone.js
+        let collectSynth, gameOverSynth;
+
+        // Mobile detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+        // Initialize audio after user interaction
+        function initAudio() {
+            if (Tone.context.state !== 'running') {
+                Tone.start().then(() => {
+                    // Create a more professional collect sound with reverb
+                    const collectReverb = new Tone.Reverb(0.8).toDestination();
+                    collectSynth = new Tone.PolySynth().connect(collectReverb);
+                    collectSynth.set({
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 0.8 }
+                    });
+
+                    // Create a professional game over sound with effects
+                    const gameOverReverb = new Tone.Reverb(1.5).toDestination();
+                    const gameOverFilter = new Tone.Filter(800, "lowpass").connect(gameOverReverb);
+                    gameOverSynth = new Tone.Synth().connect(gameOverFilter);
+                    gameOverSynth.set({
+                        oscillator: { type: "sawtooth" },
+                        envelope: { attack: 0.1, decay: 1.2, sustain: 0.3, release: 2.0 }
+                    });
+                });
+            } else {
+                // Create a more professional collect sound with reverb
+                const collectReverb = new Tone.Reverb(0.8).toDestination();
+                collectSynth = new Tone.PolySynth().connect(collectReverb);
+                collectSynth.set({
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 0.8 }
+                });
+
+                // Create a professional game over sound with effects
+                const gameOverReverb = new Tone.Reverb(1.5).toDestination();
+                const gameOverFilter = new Tone.Filter(800, "lowpass").connect(gameOverReverb);
+                gameOverSynth = new Tone.Synth().connect(gameOverFilter);
+                gameOverSynth.set({
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.1, decay: 1.2, sustain: 0.3, release: 2.0 }
+                });
+            }
+        }
+
+        // Function to play a sound when a collectible is gathered
+        function playCollectSound() {
+            if (collectSynth) {
+                // Play a pleasant ascending chord progression
+                collectSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n");
+                setTimeout(() => {
+                    collectSynth.triggerAttackRelease(["E5", "G5", "B5"], "16n");
+                }, 100);
+            }
+        }
+
+        // Function to play a sound when the game is over
+        function playGameOverSound() {
+            if (gameOverSynth) {
+                // Play a dramatic descending sequence
+                gameOverSynth.triggerAttackRelease("G3", "4n");
+                setTimeout(() => {
+                    gameOverSynth.triggerAttackRelease("F3", "4n");
+                }, 300);
+                setTimeout(() => {
+                    gameOverSynth.triggerAttackRelease("Eb3", "2n");
+                }, 600);
+            }
+        }
+
+        // Function to create the 3D statue model
+        function createStatueModel() {
+            const statue = new THREE.Group();
+            
+            // Body
+            const bodyGeometry = new THREE.BoxGeometry(0.7, 1.5, 0.7);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.set(0, 0.75, 0);
+            statue.add(body);
+            
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 1.8, 0);
+            statue.add(head);
+
+            // Base
+            const baseGeometry = new THREE.CylinderGeometry(1, 1, 0.5, 32);
+            const baseMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.set(0, 0.25, 0);
+            statue.add(base);
+
+            return statue;
+        }
+
+        // Function to spawn a new statue
+        function spawnStatue() {
+            if (!gameRunning) return;
+            const statue = createStatueModel();
+            
+            // Randomly position on the left or right side of the road
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const x = side * (Math.random() * 2 + 6);
+            statue.position.set(x, 0.5, -100);
+            
+            statues.push(statue);
+            scene.add(statue);
+        }
+
+        // Function to initialize the game
+        function init() {
+            // Set up scene, camera, and renderer
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x222222);
+            
+            // Mobile optimizations
+            if (isMobile) {
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.shadowMap.enabled = false;
+            } else {
+                renderer.setPixelRatio(window.devicePixelRatio);
+            }
+            
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // Set up camera position
+            camera.position.set(0, 3, 5);
+            camera.lookAt(0, 1, 0);
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // Create the player car model (turquoise SUV/truck style - smaller size)
+            player = new THREE.Group();
+            
+            // Define materials
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x40E0D0 }); // Turquoise
+            const windowMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a2a }); // Dark windows
+            const bumperMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 }); // Gray bumper
+            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Dark wheels
+            const lightMaterial = new THREE.MeshLambertMaterial({ color: 0xFF4500, emissive: 0xFF2200 }); // Red tail lights
+
+            // Main Body (lower section) - reduced size
+            const lowerBodyGeometry = new THREE.BoxGeometry(1.5, 0.5, 2.8);
+            const lowerBody = new THREE.Mesh(lowerBodyGeometry, bodyMaterial);
+            lowerBody.position.set(0, 0.25, 0);
+            player.add(lowerBody);
+
+            // Upper cabin section - reduced size
+            const upperBodyGeometry = new THREE.BoxGeometry(1.4, 0.7, 1.8);
+            const upperBody = new THREE.Mesh(upperBodyGeometry, bodyMaterial);
+            upperBody.position.set(0, 0.75, -0.2);
+            player.add(upperBody);
+
+            // Front windshield - reduced size
+            const frontWindowGeometry = new THREE.BoxGeometry(1.3, 0.6, 0.08);
+            const frontWindow = new THREE.Mesh(frontWindowGeometry, windowMaterial);
+            frontWindow.position.set(0, 0.75, 0.7);
+            player.add(frontWindow);
+
+            // Rear window - reduced size
+            const rearWindowGeometry = new THREE.BoxGeometry(1.3, 0.55, 0.08);
+            const rearWindow = new THREE.Mesh(rearWindowGeometry, windowMaterial);
+            rearWindow.position.set(0, 0.75, -1.1);
+            player.add(rearWindow);
+
+            // Side windows - reduced size
+            const sideWindowGeometry = new THREE.BoxGeometry(0.08, 0.55, 1.4);
+            const leftWindow = new THREE.Mesh(sideWindowGeometry, windowMaterial);
+            leftWindow.position.set(-0.7, 0.75, -0.2);
+            player.add(leftWindow);
+            const rightWindow = new THREE.Mesh(sideWindowGeometry, windowMaterial);
+            rightWindow.position.set(0.7, 0.75, -0.2);
+            player.add(rightWindow);
+
+            // Front bumper - reduced size
+            const frontBumperGeometry = new THREE.BoxGeometry(1.6, 0.2, 0.3);
+            const frontBumper = new THREE.Mesh(frontBumperGeometry, bumperMaterial);
+            frontBumper.position.set(0, 0.1, 1.55);
+            player.add(frontBumper);
+
+            // Rear bumper - reduced size
+            const rearBumperGeometry = new THREE.BoxGeometry(1.6, 0.2, 0.3);
+            const rearBumper = new THREE.Mesh(rearBumperGeometry, bumperMaterial);
+            rearBumper.position.set(0, 0.1, -1.55);
+            player.add(rearBumper);
+
+            // Wheels - reduced size
+            const wheelGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.2, 12);
+            
+            // Front wheels
+            const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontLeftWheel.rotation.z = Math.PI / 2;
+            frontLeftWheel.position.set(-0.8, 0, 0.9);
+            player.add(frontLeftWheel);
+            
+            const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontRightWheel.rotation.z = Math.PI / 2;
+            frontRightWheel.position.set(0.8, 0, 0.9);
+            player.add(frontRightWheel);
+            
+            // Rear wheels
+            const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            rearLeftWheel.rotation.z = Math.PI / 2;
+            rearLeftWheel.position.set(-0.8, 0, -0.9);
+            player.add(rearLeftWheel);
+            
+            const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            rearRightWheel.rotation.z = Math.PI / 2;
+            rearRightWheel.position.set(0.8, 0, -0.9);
+            player.add(rearRightWheel);
+
+            // Tail lights - reduced size
+            const tailLightGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.08);
+            const leftTailLight = new THREE.Mesh(tailLightGeometry, lightMaterial);
+            leftTailLight.position.set(-0.5, 0.3, -1.45);
+            player.add(leftTailLight);
+            
+            const rightTailLight = new THREE.Mesh(tailLightGeometry, lightMaterial);
+            rightTailLight.position.set(0.5, 0.3, -1.45);
+            player.add(rightTailLight);
+
+            // Exhaust pipe - reduced size
+            const exhaustGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.2, 6);
+            const exhaustMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            const exhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
+            exhaust.rotation.z = Math.PI / 2;
+            exhaust.position.set(0.4, 0.05, -1.5);
+            player.add(exhaust);
+            
+            // Adjust player position
+            player.position.set(0, 0.5, 0);
+            scene.add(player);
+
+            // Load the collectable texture
+            const textureLoader = new THREE.TextureLoader();
+            collectableTexture = textureLoader.load(collectableImageUrl);
+
+            // Create initial road segments
+            createRoad();
+
+            // Obstacle/Collectable spawning logic
+            setInterval(spawnObject, 1000);
+            // New interval to spawn statues on the side
+            setInterval(spawnStatue, 3000);
+
+            // Event listeners for player input
+            window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+            window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+            // Enhanced mobile touch controls
+            leftTouchArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys['ArrowLeft'] = true;
+            }, { passive: false });
+            
+            leftTouchArea.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys['ArrowLeft'] = false;
+            }, { passive: false });
+            
+            leftTouchArea.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                keys['ArrowLeft'] = false;
+            }, { passive: false });
+
+            rightTouchArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys['ArrowRight'] = true;
+            }, { passive: false });
+            
+            rightTouchArea.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys['ArrowRight'] = false;
+            }, { passive: false });
+            
+            rightTouchArea.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                keys['ArrowRight'] = false;
+            }, { passive: false });
+
+            // Prevent context menu on mobile
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            // Prevent scrolling on mobile
+            document.addEventListener('touchmove', (e) => {
+                if (gameRunning) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            // Event listener for window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // Function to handle window resizing
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Function to create and position the initial road segments
+        function createRoad() {
+            const segmentSize = 500;
+            const roadGeometry = new THREE.PlaneGeometry(10, segmentSize);
+            const roadMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); 
+            const barrierMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
+            const dashMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const dashGeometry = new THREE.BoxGeometry(0.2, 0.1, 5);
+            
+            // Create two main road segments
+            for (let i = 0; i < 2; i++) {
+                const roadSegment = new THREE.Mesh(roadGeometry, roadMaterial);
+                roadSegment.rotation.x = -Math.PI / 2;
+                roadSegment.position.z = -i * segmentSize;
+                scene.add(roadSegment);
+                roadSegments.push(roadSegment);
+
+                // Create side barriers for both segments
+                const barrierGeometry = new THREE.BoxGeometry(0.5, 1, segmentSize);
+                const leftBarrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+                leftBarrier.position.set(-5.25, 0.5, -i * segmentSize);
+                scene.add(leftBarrier);
+
+                const rightBarrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+                rightBarrier.position.set(5.25, 0.5, -i * segmentSize);
+                scene.add(rightBarrier);
+
+                // Create dashed lines for both segments
+                const dashCount = segmentSize / 10;
+                for (let j = 0; j < dashCount; j++) {
+                    const dash = new THREE.Mesh(dashGeometry, dashMaterial);
+                    dash.position.set(0, 0.05, -i * segmentSize + (j * 10));
+                    scene.add(dash);
+                    dashedLines.push(dash);
+                }
+            }
+        }
+        
+        // Spawns either an obstacle or a collectable
+        function spawnObject() {
+            if (!gameRunning) return;
+            
+            const randomType = Math.random();
+            if (randomType < 0.7) { // 70% chance to spawn an obstacle
+                spawnObstacle();
+            } else { // 30% chance to spawn a collectable
+                spawnCollectable();
+            }
+        }
+
+        // Function to spawn a new obstacle
+        function spawnObstacle() {
+            const obstacleGeometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            const obstacleMaterial = new THREE.MeshLambertMaterial({ color: 0xe53e3e });
+            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+            obstacle.userData.type = 'obstacle';
+            
+            // Randomly position the obstacle on the x-axis
+            const x = (Math.random() - 0.5) * 8; 
+            obstacle.position.set(x, 0.75, -100);
+            obstacles.push(obstacle);
+            scene.add(obstacle);
+        }
+
+        // Function to spawn a new collectable
+        function spawnCollectable() {
+            const collectableGeometry = new THREE.PlaneGeometry(1.5, 1.5);
+            const collectableMaterial = new THREE.MeshBasicMaterial({ 
+                map: collectableTexture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const collectable = new THREE.Mesh(collectableGeometry, collectableMaterial);
+            collectable.userData.type = 'collectable';
+            
+            // Randomly position the collectable on the x-axis
+            const x = (Math.random() - 0.5) * 8; 
+            collectable.position.set(x, 0.75, -100);
+            obstacles.push(collectable);
+            scene.add(collectable);
+        }
+
+        // The main game loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameRunning) {
+                // Player movement with mobile-optimized speed
+                const moveSpeed = isMobile ? 0.12 : 0.1;
+                if (keys['ArrowLeft'] && player.position.x > -4) {
+                    player.position.x -= moveSpeed;
+                }
+                if (keys['ArrowRight'] && player.position.x < 4) {
+                    player.position.x += moveSpeed;
+                }
+
+                // Move road segments and barriers
+                const segmentSize = 500;
+                for (let i = 0; i < roadSegments.length; i++) {
+                    const segment = roadSegments[i];
+                    segment.position.z += speed;
+
+                    if (segment.position.z > camera.position.z + 5) {
+                        segment.position.z -= roadSegments.length * segmentSize; 
+                    }
+                }
+                
+                // Move and reposition dashed lines
+                const dashCountPerSegment = segmentSize / 10;
+                for (let i = 0; i < dashedLines.length; i++) {
+                    const dash = dashedLines[i];
+                    dash.position.z += speed;
+                    
+                    if (dash.position.z > camera.position.z + 5) {
+                        dash.position.z -= dashedLines.length * 10;
+                    }
+                }
+                
+                // Move statues
+                for (let i = statues.length - 1; i >= 0; i--) {
+                    const statue = statues[i];
+                    statue.position.z += speed;
+
+                    // Remove statues that have passed
+                    if (statue.position.z > camera.position.z + 3) {
+                        scene.remove(statue);
+                        statues.splice(i, 1);
+                    }
+                }
+
+                // Obstacle and Collectable movement and collision detection
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const object = obstacles[i];
+                    object.position.z += speed;
+
+                    // Collision detection
+                    const playerBox = new THREE.Box3().setFromObject(player);
+                    const objectBox = new THREE.Box3().setFromObject(object);
+
+                    if (playerBox.intersectsBox(objectBox)) {
+                        if (object.userData.type === 'obstacle') {
+                            endGame();
+                            return;
+                        } else if (object.userData.type === 'collectable') {
+                            // Point gained, remove collectable and play sound
+                            scene.remove(object);
+                            obstacles.splice(i, 1);
+                            score++;
+                            scoreDisplay.textContent = `Score: ${score}`;
+                            playCollectSound();
+                        }
+                    }
+
+                    // Remove objects that have passed
+                    if (object.position.z > camera.position.z + 3) {
+                        scene.remove(object);
+                        obstacles.splice(i, 1);
+                    }
+                }
+
+                // Increase speed over time
+                if (speed < maxSpeed) {
+                    speed += speedIncrement;
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Function to start the game
+        function startGame() {
+            playerName = playerNameInput.value.trim();
+            if (playerName === '') {
+                const errorMessage = document.createElement('p');
+                errorMessage.textContent = 'Please enter a name to start!';
+                errorMessage.style.color = '#e53e3e';
+                startScreen.insertBefore(errorMessage, startBtn);
+                setTimeout(() => {
+                    errorMessage.remove();
+                }, 3000);
+                return;
+            }
+
+            // Initialize audio on user interaction
+            initAudio();
+
+            score = 0;
+            speed = 0.3;
+            scoreDisplay.textContent = `Score: 0`;
+            uiOverlay.classList.add('hidden');
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            gameRunning = true;
+            
+            // Reset player position
+            if (player) {
+                player.position.set(0, 0.5, 0);
+            }
+        }
+
+        // Function to end the game
+        function endGame() {
+            gameRunning = false;
+            uiOverlay.classList.remove('hidden');
+            gameOverScreen.style.display = 'block';
+            finalScoreDisplay.textContent = score;
+            playerNameDisplay.textContent = `Player: ${playerName}`;
+
+            // Play the game over sound
+            playGameOverSound();
+
+            // Clear all remaining objects
+            obstacles.forEach(object => scene.remove(object));
+            obstacles = [];
+            statues.forEach(object => scene.remove(object));
+            statues = [];
+        }
+
+        // Event listeners for UI buttons
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Initialize the game when the window loads
+        window.onload = function() {
+            init();
+            animate();
+        };
+    </script>
+</body>
+</html>
